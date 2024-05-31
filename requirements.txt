@@ -1,0 +1,6 @@
+Flask
+numpy
+datasets
+transformers
+scikit-learn
+torch
