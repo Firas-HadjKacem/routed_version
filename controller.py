@@ -2,6 +2,7 @@ import numpy as np
 from datasets import load_from_disk
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
 import torch
 
@@ -24,8 +25,8 @@ test_sequences = dataset["test"]["sequence"]
 test_labels = dataset["test"]["label"]
 
 # Determine the number of samples for 0.6% of the data
-train_samples = int(len(train_sequences) * 0.006)
-test_samples = int(len(test_sequences) * 0.006)
+train_samples = int(len(train_sequences) * 0.003)
+test_samples = int(len(test_sequences) * 0.003)
 
 # Randomly select 0.6% of the data for train and test splits
 train_indices = np.random.choice(len(train_sequences), train_samples, replace=False)
@@ -88,8 +89,13 @@ test_embeddings = get_embeddings(test_sequences, batch_size, tokenizer, quantize
 X_train, y_train = train_embeddings, train_labels
 X_test, y_test = test_embeddings, test_labels
 
-# Training the classifier
-classifier = LogisticRegression(random_state=42)
+# Scale the data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Training the classifier with increased max_iter
+classifier = LogisticRegression(random_state=42, max_iter=1000)  # Increased max_iter
 classifier.fit(X_train, y_train)
 
 # Predicting on the evaluation set
@@ -97,10 +103,11 @@ y_pred = classifier.predict(X_test)
 
 # Evaluating the classifier
 accuracy = accuracy_score(y_test, y_pred)
-report = classification_report(y_test, y_pred)
+report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division to 0
 
 def classify_sequence(sequence):
     embedding = get_embeddings([sequence], 1, tokenizer, quantized_model)
+    embedding = scaler.transform(embedding)
     prediction = classifier.predict(embedding)
     return prediction[0], accuracy
 
